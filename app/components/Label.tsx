@@ -6,7 +6,7 @@ interface LabelProps {
   }
   
   const Label: React.FC<LabelProps> = ({ text, fontSize = 'text-lg', className }) => {
-    return <div className={`text-center ${fontSize} ${className}`}>{text}</div>;
+    return <div className={` ${fontSize} ${className}`}>{text}</div>;
   };
   
   export default Label;
