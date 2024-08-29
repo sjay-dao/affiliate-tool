@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -7,143 +7,190 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  Cell,
   ResponsiveContainer,
   LabelList,
-} from 'recharts';
-import { REFERRAL_PAYOUT_PERCENTAGE } from '../constants';
-import Label from './Label';
-import RangeInput from './RangeInput';
+} from "recharts";
+
+import Label from "./Label";
+import RangeInput from "./RangeInput";
+
+//Import FontAwesome
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCircleNotch } from '@fortawesome/free-solid-svg-icons';
+
+// Define the shape of the chart data
+interface ChartData {
+  name: string;
+  value: number;
+}
 
 const IncomeProjectionChart: React.FC = () => {
+  const [referredCustomers, setReferredCustomers] = useState<number>(1);
+  const [newProjectsPerMonth, setNewProjectsPerMonth] = useState<number>(5);
+  const [existingProjectsPerMonth, setExistingProjectsPerMonth] =useState<number>(0);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [incomeAmount, setIncomeAmount] = useState<number>(0); // income after a year
 
-      const [referredCustomers, setReferredCustomers] = useState(1);
-      const [newProjectsPerMonth, setNewProjectsPerMonth] = useState(5);
-      const [existingProjectsPerMonth, setExistingProjectsPerMonth] = useState(0);
-      const [chartData, setChartData] = useState([]);
-      const [incomeAmount, setIncomeAmount] = useState(0);
-    
+    //for fontawesome
+    const [isLoading, setIsLoading] = useState(false);
 
-      // Get month list starting from the current month
-      const getMonthListFromCurrent = () => {
-        const today = new Date();
-        const currentMonth = today.getMonth();
-        const monthNames = [
+  // Get month list starting from the current month
+const getMonthListFromCurrent = (): string[] => {
+  const today = new Date();
+  const currentMonth = today.getMonth();
+
+      // Array of month names
+      const monthNames = [
           "January", "February", "March", "April", "May", "June",
           "July", "August", "September", "October", "November", "December"
-        ];
-    
-        const monthsFromCurrent = [];
-        for (let i = currentMonth; i < 12; i++) {
+      ];
+
+      // Array to store the months starting from the current month
+      const monthsFromCurrent: string[] = [];
+
+      // Add months from the current month to the end of the year
+      for (let i = currentMonth; i < 12; i++) {
           monthsFromCurrent.push(monthNames[i]);
-        }
-        for (let i = 0; i < currentMonth; i++) {
+      }
+
+      // Add months from the beginning of the year up to (but not including) the current month
+      for (let i = 0; i < currentMonth; i++) {
           monthsFromCurrent.push(monthNames[i]);
-        }
-        monthsFromCurrent.push(monthNames[currentMonth]);
-        return monthsFromCurrent;
-      }; // ... (getMonthListFromCurrent function)
-               
-        // Calculation functions
-        const computeIncome = (incomePerMonth: number[]) => {
-            const incomeAfterOneYear = incomePerMonth[11];
-            setIncomeAmount(incomeAfterOneYear);
-        };
+      }
 
-        const computeProjectAmount = () => {
-            return newProjectsPerMonth * 95;
-        };
+      // Include the current month again at the end to complete the 12-month cycle
+      monthsFromCurrent.push(monthNames[currentMonth]);
 
-        const computeExistingProjectAmount = (val: number) => {
-            return parseFloat((val * 0.25).toFixed(2));
-        };
+      return monthsFromCurrent;
+};
 
-        const computePerCustomerReferred = (val: number) => {
-            return parseFloat((referredCustomers * (computeProjectAmount() + computeExistingProjectAmount(val))).toFixed(2));
-        };
-
-      useEffect(() => {
-        // Calculate income per month based on input values
-        const calculateIncomePerMonth = () => {
-          let incomePerMonth = [];
-          let tempAvgExistingProjects = existingProjectsPerMonth;
-          let tempIncomePerMonth = computePerCustomerReferred(tempAvgExistingProjects) * REFERRAL_PAYOUT_PERCENTAGE;
-          incomePerMonth.push(tempIncomePerMonth);
+  useEffect(() => {
+    // Calculate income per month based on input values
     
-          for (let i = 1; i < 13; i++) {
-            tempAvgExistingProjects += newProjectsPerMonth;
-            tempIncomePerMonth = computePerCustomerReferred(tempAvgExistingProjects) * REFERRAL_PAYOUT_PERCENTAGE;
-            incomePerMonth.push(incomePerMonth[i - 1] + tempIncomePerMonth);
+
+    const fetchData = async () => {
+        setIsLoading(true);
+    
+        try {
+          const response = await fetch('/calculate-income', { 
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              referredCustomers,
+              newProjectsPerMonth,
+              existingProjectsPerMonth,
+              incomeAmount
+            }),
+          });
+    
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
           }
-          return incomePerMonth;
-        };
     
-        // Update chart data and income amount whenever dependencies change
-        const updateChartData = () => {
-          const incomePerMonth = calculateIncomePerMonth();
-          const newData = getMonthListFromCurrent().map((month, index) => ({
-            name: month,
-            value: incomePerMonth[index],
-          }));
-    
-          setChartData(newData);
-          computeIncome(incomePerMonth); 
-        };
-    
-        updateChartData();
-      }, [referredCustomers, newProjectsPerMonth, existingProjectsPerMonth]);
-    
-      
-  return (
-    <div className="container">
-      <div className="flex justify-center"> 
-        <Label
-          text="Income Projection"
-          fontSize="text-4xl"
-          className="text-center font-bold mb-4"
-        />
-      </div>
+          const data = await response.json();
+          console.log(data);
 
-      <div className="row">
-        <div className="col-4">
-          {/* ... (Your RangeInput components) */}
-          <RangeInput
-            label="Referred Customers per Month"
-            min={1}
-            max={5}
-            value={referredCustomers} // Pass the current value
-            onChange={setReferredCustomers} // Directly update the state
-          />
-          <RangeInput
-            label="Average New Projects Per Month"
-            min={5}
-            max={50}
-            value={newProjectsPerMonth}
-            onChange={setNewProjectsPerMonth}
-          />
-          <RangeInput
-            label="Avg Existing Projects Per Month"
-            min={0}
-            max={10000}
-            value={existingProjectsPerMonth}
-            onChange={setExistingProjectsPerMonth}
-          />
-          <div className="container">
-            <label className="text-muted small">Your Monthly income after 1 Year</label>
-            <h3 id="incomeAmount">${incomeAmount.toFixed(2)}</h3> {/* Display the calculated income */}
+          // Update chart data and income amount whenever dependencies change
+        const updateChartData = () => {
+            const incomePerMonth = data;
+            const newData = getMonthListFromCurrent().map((month, index) => ({
+              name: month.substring(0, 3),
+              value: data.incomePerMonth[index],
+            }));
+  
+        setChartData(newData);
+        setIncomeAmount(data.incomeAfterOneYear); 
+      };
+  
+      updateChartData();
+
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        } finally {
+          setIsLoading(false); 
+        }
+      };
+    
+      fetchData();
+
+    
+  }, [
+    referredCustomers,
+    newProjectsPerMonth,
+    existingProjectsPerMonth,
+  ]);
+
+  return (
+    <div className="container mx-auto p-4"> 
+      <h1 className="text-3xl font-bold text-center mb-6">Calculate your Recurring Passive Income</h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> 
+        <div>
+          <div className="bg-white p-4 rounded-lg shadow-md"> 
+            <RangeInput
+              label="Referred Customers per Month"
+              min={1}
+              max={5}
+              value={referredCustomers}
+              onChange={setReferredCustomers}
+            />
+            <RangeInput
+              label="Average New Projects Per Month"
+              min={5}
+              max={50}
+              value={newProjectsPerMonth}
+              onChange={setNewProjectsPerMonth}
+            />
+            <RangeInput
+              label="Avg Existing Projects Per Month"
+              min={0}
+              max={10000}
+              value={existingProjectsPerMonth}
+              onChange={setExistingProjectsPerMonth}
+            />
+          </div>
+
+          <div className="mt-4 bg-white p-4 rounded-lg shadow-md">
+            <label className="text-gray-600 text-sm">Your Monthly income after 1 Year</label>
+            <h3 id="incomeAmount" className="text-2xl font-semibold text-green-600">
+              {isLoading || incomeAmount === undefined ? ( 
+                <FontAwesomeIcon icon={faCircleNotch} spin />
+              ) : (
+                `$${incomeAmount.toLocaleString(undefined, {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                })}`
+              )}
+            </h3>
           </div>
         </div>
 
-        <div className="col-6">
+        <div className="border rounded-lg shadow-md p-5"> 
           <ResponsiveContainer width="100%" height={500}>
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip />
+              <Tooltip/>
               <Legend />
               <Bar dataKey="value" fill="#8884d8">
-                <LabelList dataKey="value" position="top" />
-              </Bar>
+              {/* Conditionally apply fill color based on index */}
+              {chartData.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={index === chartData.length - 1 ? '#afcc54' : '#cfd6df'} 
+                />
+              ))}
+              <LabelList dataKey="value" position="top" formatter={(value: number) =>
+                  `$${value.toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                  })}`
+                } />
+            </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

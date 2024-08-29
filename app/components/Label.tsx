@@ -1,7 +1,7 @@
 // app/components/Label.tsx
 interface LabelProps {
     text: string;
-    fontSize?: string; // Use Tailwind's text size classes (e.g., 'text-lg', 'text-2xl')
+    fontSize?: string; 
     className?: string; 
   }
   
